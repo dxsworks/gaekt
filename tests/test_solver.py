@@ -38,3 +38,51 @@ def test_strips_markdown_fence():
 def test_rejects_malformed(bad):
     with pytest.raises(SolverError):
         parse_response(bad)
+
+
+from types import SimpleNamespace
+
+import solver
+from config import Config
+
+
+def test_solve_sends_image_and_prompt_and_parses(monkeypatch):
+    captured = {}
+
+    class FakeModels:
+        def generate_content(self, *, model, contents, config):
+            captured["model"] = model
+            captured["contents"] = contents
+            captured["config"] = config
+            return SimpleNamespace(text='{"correct": ["2", "5"]}')
+
+    class FakeClient:
+        def __init__(self, *, api_key):
+            captured["api_key"] = api_key
+            self.models = FakeModels()
+
+    monkeypatch.setattr(solver.genai, "Client", FakeClient)
+
+    result = solver.solve(b"\x89PNG-fake", Config(api_key="k", model="m"))
+
+    assert result == ["2", "5"]
+    assert captured["api_key"] == "k"
+    assert captured["model"] == "m"
+    assert captured["config"].response_mime_type == "application/json"
+    image_part, prompt = captured["contents"]
+    assert image_part.inline_data.mime_type == "image/png"
+    assert image_part.inline_data.data == b"\x89PNG-fake"
+    assert prompt == solver.PROMPT
+
+
+def test_solve_wraps_api_errors(monkeypatch):
+    def boom(**kw):
+        raise RuntimeError("boom")
+
+    class FakeClient:
+        def __init__(self, *, api_key):
+            self.models = SimpleNamespace(generate_content=boom)
+
+    monkeypatch.setattr(solver.genai, "Client", FakeClient)
+    with pytest.raises(solver.SolverError, match="boom"):
+        solver.solve(b"png", Config(api_key="k"))

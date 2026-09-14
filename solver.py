@@ -2,6 +2,9 @@
 import json
 import re
 
+from google import genai
+from google.genai import types
+
 from config import Config
 
 PROMPT = """화면 캡처에는 문제 지문 없이 선지(보기)만 있다.
@@ -52,3 +55,23 @@ def parse_response(text: str) -> list[str]:
         raise SolverError(f"'correct' 리스트 없음: {cleaned[:80]!r}")
     labels = {_normalize(x) for x in data["correct"]}
     return sorted(labels, key=_sort_key)
+
+
+def solve(png_bytes: bytes, cfg: Config) -> list[str]:
+    """캡처 PNG를 Gemini에 보내 옳은 선지 라벨 리스트를 반환. 실패 시 SolverError."""
+    try:
+        client = genai.Client(api_key=cfg.api_key)
+        response = client.models.generate_content(
+            model=cfg.model,
+            contents=[
+                types.Part.from_bytes(data=png_bytes, mime_type="image/png"),
+                PROMPT,
+            ],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=0,
+            ),
+        )
+    except Exception as e:
+        raise SolverError(f"Gemini 호출 실패: {e}") from e
+    return parse_response(response.text)
