@@ -25,6 +25,14 @@ pythonw main.py
 - 아이콘 의미: `Q` 대기, `…` 처리 중, `-` 정답 없음, `!` 오류(툴팁·`app.log` 참고)
 - 정답 아이콘이 `4 3 1`처럼 거꾸로 보이면 main.py의 `REVERSE_ORDER`를 `False`로 바꾸세요.
 
+## 바탕화면 바로가기
+
+```
+python scripts/make_shortcut.py
+```
+바탕화면에 `Tray Quiz Solver` 바로가기(Q 아이콘)가 생깁니다. 더블클릭하면 콘솔 없이 실행돼요.
+작업 표시줄에 두고 싶으면 바로가기를 우클릭 → "작업 표시줄에 고정".
+
 ## Windows 11에서 아이콘이 안 보일 때
 
 Windows 11은 새 트레이 아이콘을 `^` 숨김 영역에 넣습니다.

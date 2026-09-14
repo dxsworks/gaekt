@@ -27,3 +27,9 @@ def test_glyph_is_drawn():
     # 배경 위에 흰 글자 픽셀이 실제로 그려져야 함
     pixels = list(img.get_flattened_data())
     assert any(p[0] > 200 and p[1] > 200 and p[2] > 200 for p in pixels)
+
+
+def test_render_image_custom_size():
+    img = render_image("1", size=256)
+    assert img.size == (256, 256)
+    assert img.getpixel((0, 0))[3] == 0  # 모서리는 여전히 투명

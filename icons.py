@@ -18,15 +18,16 @@ def _font(size: int):
     return ImageFont.load_default(size)
 
 
-def render_image(label: str, bg=ANSWER_BG) -> Image.Image:
-    """32×32 RGBA: 둥근 배경 위에 흰 굵은 글자 하나."""
-    img = Image.new("RGBA", (ICON_SIZE, ICON_SIZE), (0, 0, 0, 0))
+def render_image(label: str, bg=ANSWER_BG, size: int = ICON_SIZE) -> Image.Image:
+    """size×size RGBA(기본 32): 둥근 배경 위에 흰 굵은 글자 하나."""
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle((0, 0, ICON_SIZE - 1, ICON_SIZE - 1), radius=6, fill=bg)
-    font = _font(30)
+    scale = size / ICON_SIZE
+    draw.rounded_rectangle((0, 0, size - 1, size - 1), radius=round(6 * scale), fill=bg)
+    font = _font(round(30 * scale))
     left, top, right, bottom = draw.textbbox((0, 0), label, font=font)
-    x = (ICON_SIZE - (right - left)) / 2 - left
-    y = (ICON_SIZE - (bottom - top)) / 2 - top
+    x = (size - (right - left)) / 2 - left
+    y = (size - (bottom - top)) / 2 - top
     draw.text((x, y), label, font=font, fill=FG)
     return img
 
