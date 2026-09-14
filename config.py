@@ -24,13 +24,13 @@ def load_config(path: Path | None = None) -> Config:
     data: dict = {}
     if path.exists():
         try:
-            data = json.loads(path.read_text(encoding="utf-8"))
+            data = json.loads(path.read_text(encoding="utf-8-sig"))
         except json.JSONDecodeError as e:
             raise ConfigError(f"{path.name} 파싱 실패: {e}") from e
         if not isinstance(data, dict):
             raise ConfigError(f"{path.name}은 JSON 객체여야 합니다")
 
-    api_key = data.get("api_key") or os.environ.get("GEMINI_API_KEY")
+    api_key = (data.get("api_key") or os.environ.get("GEMINI_API_KEY") or "").strip()
     if not api_key:
         raise ConfigError("API 키 없음: config.json의 api_key 또는 환경변수 GEMINI_API_KEY 필요")
 

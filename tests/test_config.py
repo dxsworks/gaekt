@@ -45,3 +45,31 @@ def test_error_when_file_is_not_json(tmp_path, monkeypatch):
     p.write_text("{not json", encoding="utf-8")
     with pytest.raises(ConfigError):
         load_config(p)
+
+
+def test_loads_key_with_utf8_bom(tmp_path, monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    p = tmp_path / "config.json"
+    p.write_bytes(b"\xef\xbb\xbf" + json.dumps({"api_key": "k"}).encode())
+    assert load_config(p).api_key == "k"
+
+
+def test_error_when_env_key_is_whitespace(tmp_path, monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "   ")
+    with pytest.raises(ConfigError):
+        load_config(tmp_path / "nope.json")
+
+
+def test_strips_whitespace_from_file_key(tmp_path, monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    p = tmp_path / "config.json"
+    p.write_text(json.dumps({"api_key": " k \n"}), encoding="utf-8")
+    assert load_config(p).api_key == "k"
+
+
+def test_error_when_file_is_json_array(tmp_path, monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    p = tmp_path / "config.json"
+    p.write_text("[1, 2]", encoding="utf-8")
+    with pytest.raises(ConfigError):
+        load_config(p)
