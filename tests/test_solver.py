@@ -65,8 +65,9 @@ def test_solve_sends_image_and_prompt_and_parses(monkeypatch):
             return SimpleNamespace(text='{"correct": ["2", "5"]}')
 
     class FakeClient:
-        def __init__(self, *, api_key):
+        def __init__(self, *, api_key, **kwargs):
             captured["api_key"] = api_key
+            captured["http_options"] = kwargs.get("http_options")
             self.models = FakeModels()
 
     monkeypatch.setattr(solver.genai, "Client", FakeClient)
@@ -76,6 +77,7 @@ def test_solve_sends_image_and_prompt_and_parses(monkeypatch):
     assert result == ["2", "5"]
     assert captured["api_key"] == "k"
     assert captured["model"] == "m"
+    assert captured["http_options"].timeout == 60_000
     assert captured["config"].response_mime_type == "application/json"
     assert captured["config"].temperature == 0
     image_part, prompt = captured["contents"]
@@ -89,7 +91,7 @@ def test_solve_wraps_api_errors(monkeypatch):
         raise RuntimeError("boom")
 
     class FakeClient:
-        def __init__(self, *, api_key):
+        def __init__(self, *, api_key, **kwargs):
             self.models = SimpleNamespace(generate_content=boom)
 
     monkeypatch.setattr(solver.genai, "Client", FakeClient)

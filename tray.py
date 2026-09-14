@@ -16,6 +16,7 @@ from icons import destroy_hicon
 
 _WM_TRAY = win32con.WM_USER + 20
 _MENU_ID_BASE = 1000
+_WM_TASKBAR_CREATED = win32gui.RegisterWindowMessage("TaskbarCreated")
 
 
 class TrayManager:
@@ -23,6 +24,7 @@ class TrayManager:
         self._on_left_click = on_left_click
         self._menu = menu  # [(label, callback), ...]
         self._icons: dict[int, int] = {}  # id -> hicon
+        self._tips: dict[int, str] = {}  # id -> tooltip (탐색기 재시작 시 재등록용)
         self._lock = threading.Lock()
 
         wc = win32gui.WNDCLASS()
@@ -32,6 +34,7 @@ class TrayManager:
             _WM_TRAY: self._on_tray_msg,
             win32con.WM_COMMAND: self._on_command,
             win32con.WM_DESTROY: self._on_destroy,
+            _WM_TASKBAR_CREATED: self._on_taskbar_created,
         }
         atom = win32gui.RegisterClass(wc)
         self.hwnd = win32gui.CreateWindow(
@@ -40,7 +43,9 @@ class TrayManager:
 
     # ---- 아이콘 관리 (스레드 안전) ----
     def add(self, icon_id: int, hicon: int, tip: str) -> None:
-        if icon_id in self._icons:
+        with self._lock:
+            exists = icon_id in self._icons
+        if exists:
             # 이미 있는 id면 NIM_ADD가 실패하고 이전 HICON이 새는 것을 피하기 위해
             # update()로 위임한다.
             self.update(icon_id, hicon, tip)
@@ -52,18 +57,25 @@ class TrayManager:
                 destroy_hicon(hicon)
                 raise
             self._icons[icon_id] = hicon
+            self._tips[icon_id] = tip
 
     def update(self, icon_id: int, hicon: int, tip: str) -> None:
         with self._lock:
             old = self._icons.get(icon_id)
+            try:
+                win32gui.Shell_NotifyIcon(win32gui.NIM_MODIFY, self._nid(icon_id, hicon, tip))
+            except pywintypes.error:
+                destroy_hicon(hicon)
+                raise
             self._icons[icon_id] = hicon
-            win32gui.Shell_NotifyIcon(win32gui.NIM_MODIFY, self._nid(icon_id, hicon, tip))
+            self._tips[icon_id] = tip
             if old and old != hicon:
                 destroy_hicon(old)
 
     def remove(self, icon_id: int) -> None:
         with self._lock:
             hicon = self._icons.pop(icon_id, None)
+            self._tips.pop(icon_id, None)
             if hicon is None:
                 return
             try:
@@ -127,4 +139,15 @@ class TrayManager:
                 self.remove(icon_id)
         finally:
             win32gui.PostQuitMessage(0)
+        return 0
+
+    def _on_taskbar_created(self, hwnd, msg, wparam, lparam):
+        # 탐색기가 재시작되면 셸이 모든 트레이 아이콘을 잊어버리므로 다시 등록한다.
+        with self._lock:
+            items = [(i, hicon, self._tips.get(i, "")) for i, hicon in self._icons.items()]
+        for icon_id, hicon, tip in items:
+            try:
+                win32gui.Shell_NotifyIcon(win32gui.NIM_ADD, self._nid(icon_id, hicon, tip))
+            except pywintypes.error:
+                pass
         return 0

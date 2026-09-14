@@ -65,7 +65,7 @@ def parse_response(text: str) -> list[str]:
 def solve(png_bytes: bytes, cfg: Config) -> list[str]:
     """캡처 PNG를 Gemini에 보내 옳은 선지 라벨 리스트를 반환. 실패 시 SolverError."""
     try:
-        client = genai.Client(api_key=cfg.api_key)
+        client = genai.Client(api_key=cfg.api_key, http_options=types.HttpOptions(timeout=60_000))
         response = client.models.generate_content(
             model=cfg.model,
             contents=[
@@ -79,4 +79,6 @@ def solve(png_bytes: bytes, cfg: Config) -> list[str]:
         )
     except Exception as e:
         raise SolverError(f"Gemini 호출 실패: {e}") from e
+    if not response.text:
+        raise SolverError(f"빈 응답: {getattr(response, 'prompt_feedback', None)}")
     return parse_response(response.text)
