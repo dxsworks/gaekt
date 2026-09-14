@@ -106,3 +106,19 @@ def test_solve_wraps_api_errors(monkeypatch):
     monkeypatch.setattr(solver.genai, "Client", FakeClient)
     with pytest.raises(solver.SolverError, match="boom"):
         solver.solve(b"png", Config(api_key="k"))
+
+
+def test_describe_429_with_retry_delay():
+    msg = ("429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'Quota exceeded. "
+           "Please retry in 33.12674579s.', 'details': [{'retryDelay': '33s'}]}}")
+    out = solver._describe_api_error(RuntimeError(msg))
+    assert out == "API 요청 한도 초과: 33초 후 다시 클릭하세요"
+
+
+def test_describe_503():
+    assert "503" in solver._describe_api_error(RuntimeError("503 UNAVAILABLE. high demand"))
+
+
+def test_describe_other_error_is_truncated():
+    out = solver._describe_api_error(RuntimeError("x" * 500))
+    assert out.startswith("Gemini 호출 실패: ") and len(out) < 230

@@ -72,6 +72,23 @@ def parse_response(text: str) -> list[str]:
     return sorted(labels, key=_sort_key)
 
 
+_RETRY_SECS = re.compile(r"retry in ([0-9.]+)s|retryDelay['\"]?\s*:\s*['\"]?([0-9.]+)s")
+
+
+def _describe_api_error(e: Exception) -> str:
+    """SDK 예외를 툴팁에 넣을 만한 한 줄로 요약한다."""
+    text = str(e)
+    code = getattr(e, "code", None)
+    if code == 429 or "RESOURCE_EXHAUSTED" in text:
+        m = _RETRY_SECS.search(text)
+        secs = next((g for g in (m.groups() if m else ()) if g), None)
+        wait = f" {float(secs):.0f}초 후" if secs else " 잠시 후"
+        return f"API 요청 한도 초과:{wait} 다시 클릭하세요"
+    if code == 503 or "UNAVAILABLE" in text:
+        return "Gemini 서버 과부하(503): 잠시 후 다시 클릭하세요"
+    return f"Gemini 호출 실패: {text[:200]}"
+
+
 def solve(png_bytes: bytes, cfg: Config) -> list[str]:
     """캡처 PNG를 Gemini에 보내 옳은 선지 라벨 리스트를 반환. 실패 시 SolverError."""
     try:
@@ -88,7 +105,7 @@ def solve(png_bytes: bytes, cfg: Config) -> list[str]:
             ),
         )
     except Exception as e:
-        raise SolverError(f"Gemini 호출 실패: {e}") from e
+        raise SolverError(_describe_api_error(e)) from e
     if not response.text:
         raise SolverError(f"빈 응답: {getattr(response, 'prompt_feedback', None)}")
     return parse_response(response.text)
