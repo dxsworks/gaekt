@@ -7,6 +7,7 @@ add/update/remove는 다른 스레드에서 호출해도 된다.
 """
 import threading
 
+import pywintypes
 import win32api
 import win32con
 import win32gui
@@ -39,9 +40,18 @@ class TrayManager:
 
     # ---- 아이콘 관리 (스레드 안전) ----
     def add(self, icon_id: int, hicon: int, tip: str) -> None:
+        if icon_id in self._icons:
+            # 이미 있는 id면 NIM_ADD가 실패하고 이전 HICON이 새는 것을 피하기 위해
+            # update()로 위임한다.
+            self.update(icon_id, hicon, tip)
+            return
         with self._lock:
+            try:
+                win32gui.Shell_NotifyIcon(win32gui.NIM_ADD, self._nid(icon_id, hicon, tip))
+            except pywintypes.error:
+                destroy_hicon(hicon)
+                raise
             self._icons[icon_id] = hicon
-            win32gui.Shell_NotifyIcon(win32gui.NIM_ADD, self._nid(icon_id, hicon, tip))
 
     def update(self, icon_id: int, hicon: int, tip: str) -> None:
         with self._lock:
@@ -56,11 +66,16 @@ class TrayManager:
             hicon = self._icons.pop(icon_id, None)
             if hicon is None:
                 return
-            win32gui.Shell_NotifyIcon(win32gui.NIM_DELETE, (self.hwnd, icon_id))
+            try:
+                win32gui.Shell_NotifyIcon(win32gui.NIM_DELETE, (self.hwnd, icon_id))
+            except pywintypes.error:
+                pass  # 셸이 이미 아이콘을 잃어버린 경우(예: 탐색기 재시작)도 정리는 계속한다.
             destroy_hicon(hicon)
 
     def remove_all_except(self, keep_id: int) -> None:
-        for icon_id in [i for i in self._icons if i != keep_id]:
+        with self._lock:
+            ids = [i for i in self._icons if i != keep_id]
+        for icon_id in ids:
             self.remove(icon_id)
 
     def _nid(self, icon_id, hicon, tip):
@@ -87,7 +102,10 @@ class TrayManager:
         for i, (label, _) in enumerate(self._menu):
             win32gui.AppendMenu(menu, win32con.MF_STRING, _MENU_ID_BASE + i, label)
         pos = win32gui.GetCursorPos()
-        win32gui.SetForegroundWindow(self.hwnd)  # 메뉴 밖 클릭 시 닫히게 함
+        try:
+            win32gui.SetForegroundWindow(self.hwnd)  # 메뉴 밖 클릭 시 닫히게 함
+        except pywintypes.error:
+            pass  # best-effort
         win32gui.TrackPopupMenu(
             menu, win32con.TPM_LEFTALIGN | win32con.TPM_RIGHTBUTTON,
             pos[0], pos[1], 0, self.hwnd, None,
@@ -102,7 +120,11 @@ class TrayManager:
         return 0
 
     def _on_destroy(self, hwnd, msg, wparam, lparam):
-        for icon_id in list(self._icons):
-            self.remove(icon_id)
-        win32gui.PostQuitMessage(0)
+        with self._lock:
+            ids = list(self._icons)
+        try:
+            for icon_id in ids:
+                self.remove(icon_id)
+        finally:
+            win32gui.PostQuitMessage(0)
         return 0
