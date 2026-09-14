@@ -23,6 +23,15 @@ def test_parses_and_sorts_jamo_labels():
     assert parse_response('{"correct": ["ㄷ", "ㄱ"]}') == ["ㄱ", "ㄷ"]
 
 
+def test_parses_and_sorts_alpha_labels():
+    assert parse_response('{"correct": ["e", "b.", "C"]}') == ["b", "C", "e"]
+
+
+def test_rejects_multi_letter_alpha():
+    with pytest.raises(SolverError):
+        parse_response('{"correct": ["ab"]}')
+
+
 def test_empty_list_is_valid():
     assert parse_response('{"correct": []}') == []
 
