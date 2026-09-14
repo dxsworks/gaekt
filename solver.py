@@ -14,6 +14,9 @@ PROMPT = """화면 캡처에는 문제 지문 없이 선지(보기)만 있다.
 라벨은 화면에 표시된 그대로 사용한다:
 - 숫자 라벨(1, 2, 3, ... 또는 ①, ②, ③, ...)은 "1", "2", "3" 형식으로
 - 한글 자모 라벨(ㄱ, ㄴ, ㄷ, ㄹ, ...)은 "ㄱ", "ㄴ" 형식으로
+라벨이 화면에 "1.", "1)", "(1)", "ㄱ." 처럼 꾸밈 기호와 함께 표시되어도
+반환할 때는 꾸밈 기호를 뺀 "1", "ㄱ" 형식으로 반환한다.
+버튼, 타이머, 메뉴 등 선지가 아닌 화면 텍스트는 무시한다.
 
 출력은 다음 JSON 객체 하나만, 다른 텍스트 없이:
 {"correct": ["1", "3"]}
@@ -21,6 +24,8 @@ PROMPT = """화면 캡처에는 문제 지문 없이 선지(보기)만 있다.
 
 _CIRCLED = {c: str(i + 1) for i, c in enumerate("①②③④⑤⑥⑦⑧⑨⑩")}
 _JAMO_ORDER = "ㄱㄴㄷㄹㅁㅂㅅㅇㅈㅊㅋㅌㅍㅎ"
+_JAMO = frozenset(_JAMO_ORDER)
+_DIGITS = re.compile(r"[1-9][0-9]?")
 _FENCE = re.compile(r"^```(?:json)?\s*|\s*```$", re.MULTILINE)
 
 
@@ -31,9 +36,9 @@ class SolverError(Exception):
 def _normalize(label) -> str:
     if isinstance(label, bool) or not isinstance(label, (str, int)):
         raise SolverError(f"라벨 형식 오류: {label!r}")
-    s = str(label).strip()
+    s = str(label).strip().strip(".)(）（")
     s = _CIRCLED.get(s, s)
-    if s.isdigit() or s in _JAMO_ORDER:
+    if _DIGITS.fullmatch(s) or s in _JAMO:
         return s
     raise SolverError(f"알 수 없는 라벨: {label!r}")
 

@@ -1,5 +1,9 @@
+from types import SimpleNamespace
+
 import pytest
 
+import solver
+from config import Config
 from solver import SolverError, parse_response
 
 
@@ -27,6 +31,10 @@ def test_strips_markdown_fence():
     assert parse_response('```json\n{"correct": ["2"]}\n```') == ["2"]
 
 
+def test_strips_label_decorations():
+    assert parse_response('{"correct": ["1.", "(3)", "ㄱ)"]}') == ["1", "3", "ㄱ"]
+
+
 @pytest.mark.parametrize("bad", [
     "not json",
     '{"answer": ["1"]}',
@@ -34,16 +42,16 @@ def test_strips_markdown_fence():
     '{"correct": [{"a": 1}]}',
     '{"correct": ["hello"]}',
     "",
+    '{"correct": [""]}',
+    '{"correct": ["ㄱㄴ"]}',
+    '{"correct": [true]}',
+    '{"correct": ["²"]}',
+    '{"correct": ["0"]}',
+    '{"correct": ["999"]}',
 ])
 def test_rejects_malformed(bad):
     with pytest.raises(SolverError):
         parse_response(bad)
-
-
-from types import SimpleNamespace
-
-import solver
-from config import Config
 
 
 def test_solve_sends_image_and_prompt_and_parses(monkeypatch):
@@ -69,6 +77,7 @@ def test_solve_sends_image_and_prompt_and_parses(monkeypatch):
     assert captured["api_key"] == "k"
     assert captured["model"] == "m"
     assert captured["config"].response_mime_type == "application/json"
+    assert captured["config"].temperature == 0
     image_part, prompt = captured["contents"]
     assert image_part.inline_data.mime_type == "image/png"
     assert image_part.inline_data.data == b"\x89PNG-fake"
