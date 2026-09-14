@@ -23,14 +23,14 @@ def test_env_key_used_when_file_missing(tmp_path, monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "env-key")
     cfg = load_config(tmp_path / "nope.json")
     assert cfg.api_key == "env-key"
-    assert cfg.model == "gemini-3.8-flash"
+    assert cfg.model == "gemini-3.5-flash"
 
 
 def test_default_model_when_file_has_only_key(tmp_path, monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     p = tmp_path / "config.json"
     p.write_text(json.dumps({"api_key": "k"}), encoding="utf-8")
-    assert load_config(p).model == "gemini-3.8-flash"
+    assert load_config(p).model == "gemini-3.5-flash"
 
 
 def test_error_when_no_key_anywhere(tmp_path, monkeypatch):

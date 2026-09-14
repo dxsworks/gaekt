@@ -11,7 +11,7 @@ copy config.example.json config.json   # PowerShell/cmd
 cp config.example.json config.json     # Git Bash
 ```
 `config.json`에 Gemini API 키를 넣습니다 (https://aistudio.google.com 에서 발급).
-환경변수 `GEMINI_API_KEY`로 대신할 수도 있습니다. `model`은 생략 시 `gemini-3.8-flash`.
+환경변수 `GEMINI_API_KEY`로 대신할 수도 있습니다. `model`은 생략 시 `gemini-3.5-flash`.
 
 ## 실행
 
