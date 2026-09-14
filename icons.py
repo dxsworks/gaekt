@@ -23,7 +23,7 @@ def render_image(label: str, bg=ANSWER_BG) -> Image.Image:
     img = Image.new("RGBA", (ICON_SIZE, ICON_SIZE), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     draw.rounded_rectangle((0, 0, ICON_SIZE - 1, ICON_SIZE - 1), radius=6, fill=bg)
-    font = _font(26)
+    font = _font(30)
     left, top, right, bottom = draw.textbbox((0, 0), label, font=font)
     x = (ICON_SIZE - (right - left)) / 2 - left
     y = (ICON_SIZE - (bottom - top)) / 2 - top
@@ -33,6 +33,7 @@ def render_image(label: str, bg=ANSWER_BG) -> Image.Image:
 
 def image_to_hicon(img: Image.Image) -> int:
     """PIL 이미지 → HICON 핸들. 사용 후 destroy_hicon()으로 해제."""
+    import pywintypes
     import win32con
     import win32gui
 
@@ -40,14 +41,15 @@ def image_to_hicon(img: Image.Image) -> int:
     os.close(fd)
     try:
         img.save(path, format="ICO", sizes=[(ICON_SIZE, ICON_SIZE)])
-        hicon = win32gui.LoadImage(
-            0, path, win32con.IMAGE_ICON, 0, 0,
-            win32con.LR_LOADFROMFILE | win32con.LR_DEFAULTSIZE,
-        )
+        try:
+            hicon = win32gui.LoadImage(
+                0, path, win32con.IMAGE_ICON, 0, 0,
+                win32con.LR_LOADFROMFILE | win32con.LR_DEFAULTSIZE,
+            )
+        except pywintypes.error as e:
+            raise RuntimeError(f"HICON 생성 실패: {e}") from e
     finally:
         os.remove(path)
-    if not hicon:
-        raise RuntimeError("HICON 생성 실패")
     return hicon
 
 

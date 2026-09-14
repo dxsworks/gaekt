@@ -25,5 +25,5 @@ def test_answer_and_main_backgrounds_differ():
 def test_glyph_is_drawn():
     img = render_image("1")
     # 배경 위에 흰 글자 픽셀이 실제로 그려져야 함
-    pixels = list(img.getdata())
+    pixels = list(img.get_flattened_data())
     assert any(p[0] > 200 and p[1] > 200 and p[2] > 200 for p in pixels)

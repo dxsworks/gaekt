@@ -71,7 +71,7 @@ Windows 시스템 트레이 아이콘을 클릭하면 주 모니터를 캡처해
 - 32×32 RGBA (Windows가 16×16으로 축소해도 굵은 한 글자는 읽힘)
 - 정답 아이콘: 진녹색 둥근 배경 + 흰 글자. 메인 아이콘: 진회색 배경으로 구분
 - 폰트: `C:\Windows\Fonts\malgunbd.ttf`(맑은 고딕 Bold). 없으면 Pillow 기본 폰트로 폴백
-- Pillow 이미지 → `.ico` 바이트 → `CreateIconFromResourceEx`로 HICON 생성. HICON은 아이콘 삭제 시 `DestroyIcon`
+- Pillow 이미지를 임시 `.ico` 파일로 저장한 뒤 `win32gui.LoadImage`로 HICON 생성, 로드 후 임시 파일은 삭제. HICON은 아이콘 삭제 시 `DestroyIcon`
 
 ## 테스트
 
